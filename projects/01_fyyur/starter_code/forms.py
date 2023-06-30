@@ -15,10 +15,7 @@ class ShowForm(Form):
         validators=[DataRequired()],
         default= datetime.today()
     )
-
-from wtforms.validators import URL, DataRequired
-from wtforms import StringField, SelectField, SelectMultipleField, BooleanField
-
+    
 class VenueForm(Form):
     name = StringField(
         'name', validators=[DataRequired()]

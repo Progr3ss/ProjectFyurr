@@ -14,6 +14,7 @@ from logging import Formatter, FileHandler
 from flask_wtf import FlaskForm
 from forms import *
 from flask_migrate import Migrate
+from model import *
 
 # App Config.
 app = Flask(__name__)
@@ -21,57 +22,9 @@ app.config.from_object('config')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://martinchibwe@localhost:5432/Fyyur'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 moment = Moment(app)
-db = SQLAlchemy(app)
+# db = SQLAlchemy(app)
+db.init_app(app) 
 migrate = Migrate(app, db)
-
-#----------------------------------------------------------------------------#
-# Models.
-#----------------------------------------------------------------------------#
-class Venue(db.Model):
-    __tablename__ = 'Venue'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    address = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
-    website = db.Column(db.String(120))
-    seeking_talent = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(500))
-    shows = db.relationship('Show', backref='venue', cascade='all, delete-orphan')
-    genres = db.Column(db.ARRAY(db.String)) 
-
-class Artist(db.Model):
-    __tablename__ = 'Artist'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
-    genres = db.Column(db.String(120))
-    image_link = db.Column(db.String(500))
-    facebook_link = db.Column(db.String(120))
-    
-    # Add missing fields
-    website = db.Column(db.String(120))
-    seeking_venue = db.Column(db.Boolean, default=False)
-    seeking_description = db.Column(db.String(500))
-    shows_venue = db.relationship('Show', backref='artist', cascade='all, delete-orphan')
-
-class Show(db.Model):
-    __tablename__ = 'Show'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
-    venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
-    start_time = db.Column(db.DateTime, nullable=False)
-
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -542,6 +495,9 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
+    #   # called to create new shows in the db, upon submitting new show listing form
+    # TODO: insert form data as a new Show record in the db, instead
+
     # called to create new shows in the db, upon submitting new show listing form
     # Get the form data
     form = ShowForm(request.form)
@@ -566,37 +522,6 @@ def create_show_submission():
         flash('An error occurred. Show could not be listed.')
         db.session.rollback()
         return render_template('pages/home.html')
-# def create_show_submission():
-#   # called to create new shows in the db, upon submitting new show listing form
-#   # TODO: insert form data as a new Show record in the db, instead
-#     form = ShowForm(request.form)
-
-#     # Create a new Show record
-#     show = Show(
-#         artist_id=form.artist_id.data,
-#         venue_id=form.venue_id.data,
-#         start_time=form.start_time.data
-#     )
-
-#     try:
-#         # Add the new show to the database
-#         db.session.add(show)
-#         db.session.commit()
-
-#         # on successful db insert, flash success
-#         flash('Show was successfully listed!')
-#         # TODO: on unsuccessful db insert, flash an error instead.
-#         # e.g., flash('An error occurred. Show could not be listed.')
-#         # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
-
-#         return render_template('pages/home.html')
-#     except:
-#         # on unsuccessful db insert, flash an error
-#         flash('An error occurred. Show could not be listed.')
-#         db.session.rollback()
-#         # TODO: handle the error gracefully and display an appropriate message to the user
-
-#         return render_template('pages/home.html')
 
 @app.errorhandler(404)
 def not_found_error(error):
