@@ -147,7 +147,7 @@ def show_venue(venue_id):
     data = {
         "id": venue.id,
         "name": venue.name,
-        "genres": venue.genres.split(','),
+        "genres": ",".join(venue.genres),
         "address": venue.address,
         "city": venue.city,
         "state": venue.state,
@@ -242,75 +242,61 @@ def create_venue_submission():
 
 
 
-
-
-
-
-# Regenerate response
-# def create_venue_submission():
-#     form = VenueForm(request.form)
-
-#     if form.validate():
-#         try:
-#             genres = form.genres.data
-
-#             new_venue = Venue(
-#                 name=form.name.data,
-#                 city=form.city.data,
-#                 state=form.state.data,
-#                 address=form.address.data,
-#                 phone=form.phone.data,
-#                 image_link=form.image_link.data,
-#                 facebook_link=form.facebook_link.data,
-#                 website=form.website_link.data,
-#                 seeking_talent=form.seeking_talent.data,
-#                 seeking_description=form.seeking_description.data
-#             )
-
-#             # Add new_venue to the database
-#             db.session.add(new_venue)
-#             db.session.commit()
-
-#             # Flash success message
-#             flash('Venue ' + new_venue.name + ' was successfully listed!')
-#             return render_template('pages/home.html')
-
-#         except Exception as e:
-#             # Print the exception for debugging purposes
-#             print(str(e))
-#             flash('An error occurred. Venue ' + form.name.data + ' could not be listed.')
-#     else:
-#         # Display form validation errors as flash messages
-#         for field, errors in form.errors.items():
-#             for error in errors:
-#                 flash(f"{field.title()} {error}")
-
-#     return render_template('forms/new_venue.html', form=form)
-
 @app.route('/venues/<venue_id>', methods=['DELETE'])
 def delete_venue(venue_id):
-  # TODO: Complete this endpoint for taking a venue_id, and using
-  # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
+    # Get the venue with the specified ID
+    venue = Venue.query.get(venue_id)
 
-  # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
-  # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+    if not venue:
+        # Venue with the specified ID does not exist
+        flash('Venue not found.')
+        return redirect(url_for('index'))
+
+    try:
+        # Delete the venue record from the database
+        db.session.delete(venue)
+        db.session.commit()
+        flash('Venue deleted successfully.')
+        return redirect(url_for('index'))
+    except:
+        # Handle exceptions if the session commit fails
+        db.session.rollback()
+        flash('An error occurred. Venue could not be deleted.')
+        return redirect(url_for('index'))
+  #  # Query all venues
+  #   venues = Venue.query.all()
+
+  #   # Prepare data for rendering
+  #   data = []
+  #   for venue in venues:
+  #       num_upcoming_shows =  len([show for show in venue.shows if show.start_time > datetime.now()])
+  #       data.append({
+  #           "city": venue.city,
+  #           "state": venue.state,
+  #           "venues": [{
+  #               "id": venue.id,
+  #               "name": venue.name,
+  #               "num_upcoming_shows": num_upcoming_shows,
+  #           }]
+  #       })
+
 
 #  Artists
 #  ----------------------------------------------------------------
 @app.route('/artists')
 def artists():
   # TODO: replace with real data returned from querying the database
-  data=[{
-    "id": 4,
-    "name": "Guns N Petals",
-  }, {
-    "id": 5,
-    "name": "Matt Quevedo",
-  }, {
-    "id": 6,
-    "name": "The Wild Sax Band",
-  }]
+  #Query all artists
+  artists = Artist.query.all()
+  
+  #load data 
+  data = [] 
+  for artist in artists:
+     data.append({
+        "id": artist.id,
+        "name": artist.name,
+     })
+
   return render_template('pages/artists.html', artists=data)
 
 @app.route('/artists/search', methods=['POST'])
