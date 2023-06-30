@@ -3,6 +3,7 @@
 #----------------------------------------------------------------------------#
 
 import json
+import json
 import dateutil.parser
 import babel
 from flask import Flask, render_template, request, Response, flash, redirect, url_for
@@ -10,23 +11,22 @@ from flask_moment import Moment
 from flask_sqlalchemy import SQLAlchemy
 import logging
 from logging import Formatter, FileHandler
-from flask_wtf import Form
+from flask_wtf import FlaskForm
 from forms import *
-#----------------------------------------------------------------------------#
+from flask_migrate import Migrate
+
 # App Config.
-#----------------------------------------------------------------------------#
-
 app = Flask(__name__)
-moment = Moment(app)
 app.config.from_object('config')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://martinchibwe@localhost:5432/Fyyur'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+moment = Moment(app)
 db = SQLAlchemy(app)
-
-# TODO: connect to a local postgresql database
+migrate = Migrate(app, db)
 
 #----------------------------------------------------------------------------#
 # Models.
 #----------------------------------------------------------------------------#
-
 class Venue(db.Model):
     __tablename__ = 'Venue'
 
@@ -40,6 +40,11 @@ class Venue(db.Model):
     facebook_link = db.Column(db.String(120))
 
     # TODO: implement any missing fields, as a database migration using Flask-Migrate
+    website = db.Column(db.String(120))
+    seeking_talent = db.Column(db.Boolean, default=False)
+    seeking_description = db.Column(db.String(500))
+    shows = db.relationship('Show', backref='venue', cascade='all, delete-orphan')
+
 
 class Artist(db.Model):
     __tablename__ = 'Artist'
@@ -52,10 +57,21 @@ class Artist(db.Model):
     genres = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
+    
+    # Add missing fields
+    website = db.Column(db.String(120))
+    seeking_venue = db.Column(db.Boolean, default=False)
+    seeking_description = db.Column(db.String(500))
+    shows_venue = db.relationship('Show', backref='artist', cascade='all, delete-orphan')
 
-    # TODO: implement any missing fields, as a database migration using Flask-Migrate
+class Show(db.Model):
+    __tablename__ = 'Show'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), nullable=False)
+    venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), nullable=False)
+    start_time = db.Column(db.DateTime, nullable=False)
 
-# TODO Implement Show and Artist models, and complete all model relationships and properties, as a database migration.
 
 #----------------------------------------------------------------------------#
 # Filters.
@@ -82,48 +98,60 @@ def index():
 
 #  Venues
 #  ----------------------------------------------------------------
-
 @app.route('/venues')
 def venues():
-  # TODO: replace with real venues data.
-  #       num_upcoming_shows should be aggregated based on number of upcoming shows per venue.
-  data=[{
-    "city": "San Francisco",
-    "state": "CA",
-    "venues": [{
-      "id": 1,
-      "name": "The Musical Hop",
-      "num_upcoming_shows": 0,
-    }, {
-      "id": 3,
-      "name": "Park Square Live Music & Coffee",
-      "num_upcoming_shows": 1,
-    }]
-  }, {
-    "city": "New York",
-    "state": "NY",
-    "venues": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }]
-  return render_template('pages/venues.html', areas=data);
+    # Query all venues
+    venues = Venue.query.all()
+
+    # Prepare data for rendering
+    data = []
+    for venue in venues:
+        num_upcoming_shows = len(venue.shows.filter(Show.start_time > datetime.now()).all())
+        data.append({
+            "city": venue.city,
+            "state": venue.state,
+            "venues": [{
+                "id": venue.id,
+                "name": venue.name,
+                "num_upcoming_shows": num_upcoming_shows,
+            }]
+        })
+
+    return render_template('pages/venues.html', areas=data)
 
 @app.route('/venues/search', methods=['POST'])
+
 def search_venues():
-  # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
-  # seach for Hop should return "The Musical Hop".
-  # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
-  response={
-    "count": 1,
-    "data": [{
-      "id": 2,
-      "name": "The Dueling Pianos Bar",
-      "num_upcoming_shows": 0,
-    }]
-  }
-  return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
+    # Get the search term from the request form
+    search_term = request.form.get('search_term', '')
+    
+    # Perform case-insensitive search on venues using partial string matching
+    venues = Venue.query.filter(Venue.name.ilike(f'%{search_term}%')).all()
+    
+    # Prepare response data
+    response = {
+        "count": len(venues),
+        "data": [{
+            "id": venue.id,
+            "name": venue.name,
+            "num_upcoming_shows": len(venue.shows.filter(Show.start_time > datetime.now()).all()),
+        } for venue in venues]
+    }
+    
+    return render_template('pages/search_venues.html', results=response, search_term=search_term)
+# def search_venues():
+#   # TODO: implement search on venues with partial string search. Ensure it is case-insensitive.
+#   # seach for Hop should return "The Musical Hop".
+#   # search for "Music" should return "The Musical Hop" and "Park Square Live Music & Coffee"
+#   response={
+#     "count": 1,
+#     "data": [{
+#       "id": 2,
+#       "name": "The Dueling Pianos Bar",
+#       "num_upcoming_shows": 0,
+#     }]
+#   }
+#   return render_template('pages/search_venues.html', results=response, search_term=request.form.get('search_term', ''))
 
 @app.route('/venues/<int:venue_id>')
 def show_venue(venue_id):
